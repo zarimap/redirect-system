@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>リダイレクト処理中...</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f5f5f7;
+      color: #333;
+    }
+    .card {
+      background: #fff;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      text-align: center;
+      max-width: 400px;
+      width: 90%;
+    }
+    .btn {
+      display: inline-block;
+      margin-top: 1rem;
+      padding: 0.8rem 1.5rem;
+      background-color: #0071e3;
+      color: white;
+      text-decoration: none;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    .btn:hover {
+      background-color: #0077ed;
+    }
+    .note {
+      font-size: 0.85rem;
+      color: #666;
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card" id="app">
+    <p>指定のページへ移動しています...</p>
+  </div>
+
+  <script>
+    (function() {
+      // 1. URLパラメータの取得 (?to=... の部分)
+      const params = new URLSearchParams(window.location.search);
+      let targetUrl = params.get('to');
+      const referrer = document.referrer; // 呼び出し元のURL
+
+      // パラメータがない場合の表示
+      if (!targetUrl) {
+        document.getElementById('app').innerHTML = `
+          <h2>エラー</h2>
+          <p>リダイレクト先のURLが指定されていません。</p>
+        `;
+        return;
+      }
+
+      // 2. リダイレクト先URLに「元サイトのURL(from)」を付与する
+      try {
+        const urlObj = new URL(targetUrl);
+        if (referrer) {
+          urlObj.searchParams.set('from', referrer);
+        }
+        targetUrl = urlObj.toString();
+      } catch (e) {
+        // targetUrlが相対パスや無効なURLの場合はそのまま使用
+      }
+
+      // 3. アクセスログの記録（LocalStorageを使用）
+      const logEntry = {
+        timestamp: new Date().toISOString(),
+        from: referrer || 'Direct/Unknown',
+        to: targetUrl
+      };
+      
+      const currentLogs = JSON.parse(localStorage.getItem('redirect_logs') || '[]');
+      currentLogs.push(logEntry);
+      localStorage.setItem('redirect_logs', JSON.stringify(currentLogs));
+
+      // 4. 「元のタブを閉じる」モード（リダイレクト先から戻ってきた場合）
+      if (params.get('action') === 'close') {
+        document.getElementById('app').innerHTML = `
+          <h2>元のサイトに戻ります</h2>
+          <p>以下のボタンを押してこのタブを閉じてください。</p>
+          <button class="btn" onclick="window.close()">このタブを閉じる</button>
+          <p class="note">※ブラウザの制限により自動で閉じない場合は、手動でタブを閉じてください。</p>
+        `;
+        return;
+      }
+
+      // 5. 自動リダイレクト実行 (即時転送)
+      window.location.href = targetUrl;
+    })();
+  </script>
+</body>
+</html>
